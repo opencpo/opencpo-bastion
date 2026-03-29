@@ -70,13 +70,13 @@ OpenCPO Bastion solves this by sitting between your chargers and the cloud:
 
 ## Hardware Requirements
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| Board | Raspberry Pi Zero 2W | Raspberry Pi 4 (2GB+) |
-| RAM | 512MB | 2GB+ |
-| Storage | SD card 8GB | SD card 16GB+ (A1/A2 rated) |
-| Network | Wi-Fi (Zero 2W) | Ethernet (Pi 4) |
-| Power | 5V 2.5A | 5V 3A (USB-C on Pi 4) |
+| Component | Minimum | Recommended | HA Pair |
+|-----------|---------|-------------|---------|
+| Board | Raspberry Pi Zero 2W | Raspberry Pi 4 (2GB+) | NanoPi R5S/R6S, Zimaboard, CM4 + dual-ETH carrier |
+| RAM | 512MB | 2GB+ | 2GB+ each |
+| Storage | SD card 8GB | SD card 16GB+ (A1/A2 rated) | 16GB+ each |
+| Network | Wi-Fi (Zero 2W) | Ethernet (Pi 4) | **2x Ethernet** (dual-NIC SBC) |
+| Power | 5V 2.5A | 5V 3A (USB-C on Pi 4) | 5V 3A each |
 
 **Notes:**
 - Ethernet strongly recommended for charger connectivity (reliability + latency)
@@ -84,6 +84,26 @@ OpenCPO Bastion solves this by sitting between your chargers and the cloud:
 - Pi Zero 2W works well for small sites (1-3 chargers)
 - Optional: Waveshare TPM HAT for hardware-backed key storage
 - Read-only rootfs: SD card wear is minimal, but quality card still recommended
+
+### Dual Ethernet (HA / Production)
+
+For HA pairs and production sites, use an SBC with two Ethernet ports:
+
+| Board | ETH ports | Notes |
+|-------|-----------|-------|
+| **NanoPi R5S** | 1× 2.5GbE + 2× 1GbE | Best all-around. RK3566, 4GB RAM. ~$60 |
+| **NanoPi R6S** | 1× 2.5GbE + 2× 1GbE | Faster RK3588S, 8GB RAM. ~$80 |
+| **Zimaboard 832** | 2× Intel i226 1GbE | x86-64, PCIe slot for 4G mPCIe card. ~$100 |
+| **CM4 + dual-ETH carrier** | 2× 1GbE | Waveshare or similar CM4 IO board |
+| **Raspberry Pi 5** | 1× GbE + USB-ETH | Works; USB-ETH is fine for charger LAN |
+
+**Interface assignment (dual-NIC):**
+```
+ETH0 → WAN / uplink  (Tailscale, Core API, internet — metric 100)
+ETH1 → Charger LAN  (isolated, DHCP server, VRRP virtual IP)
+```
+
+Single-ETH boards work fine in standalone mode. Dual-ETH is required for HA pairs.
 
 ---
 
@@ -97,6 +117,8 @@ OpenCPO Bastion solves this by sitting between your chargers and the cloud:
 | `gateway/monitor.py` | Health monitoring — Prometheus metrics, heartbeat to Core, alerts |
 | `gateway/tap.py` | OCPP message tap — ring buffer, SSE stream, query/export |
 | `gateway/troubleshoot.py` | Remote diagnostics — network, chargers, speedtest, packet capture |
+| `gateway/ha.py` | **High Availability** — peer discovery, VRRP/keepalived, state replication, failover |
+| `gateway/connectivity.py` | **Multi-WAN** — 4G failover via ModemManager, bandwidth-aware mode |
 | `gateway/config.py` | Config management — loads opencpo.yaml, env overrides, validation |
 | `gateway/updater.py` | Auto-update — checks Core for updates, verifies, rolls back if broken |
 | `gateway/main.py` | Entry point — asyncio orchestration, watchdog, graceful shutdown |
@@ -156,6 +178,128 @@ gunzip -c image/opencpo-bastion-*.img.gz | sudo dd of=/dev/sdX bs=4M status=prog
 
 ---
 
+## Deployment Modes
+
+### Standalone (default)
+
+One gateway unit. No HA config needed. ETH0 for charger LAN or uplink, works on any Pi.
+
+```yaml
+# opencpo.yaml — minimum config
+tailscale_auth_key: tskey-...
+core_api_url: https://core.example.com
+# ha.enabled defaults to "auto" — no peer found → standalone mode
+```
+
+### HA Pair (zero-config auto-discovery)
+
+Two identical units. Flash the same image to both. They find each other automatically.
+
+```yaml
+# opencpo.yaml — same on both units (truly identical)
+tailscale_auth_key: tskey-...
+core_api_url: https://core.example.com
+
+ha:
+  enabled: auto          # default — find peer, negotiate roles
+  interface: eth1        # charger LAN interface
+  virtual_ip: ""         # auto-derived from eth1 subnet
+```
+
+Boot both units. Within 10 seconds they discover each other via UDP broadcast, negotiate
+active/standby roles (tunnel health → VRRP priority → hostname tiebreak), start keepalived,
+and chargers connect to the shared VIP. Failover happens in <3 seconds.
+
+### HA Pair (explicit roles)
+
+Use when you want deterministic role assignment (e.g. unit A is always primary):
+
+```yaml
+# Unit A — opencpo-A.yaml
+ha:
+  enabled: true
+  role: primary          # always wants to be active
+  priority: 150
+  interface: eth1
+  virtual_ip: 192.168.10.100
+
+# Unit B — opencpo-B.yaml
+ha:
+  enabled: true
+  role: secondary        # always standby unless A is down
+  priority: 100
+  interface: eth1
+  virtual_ip: 192.168.10.100
+```
+
+### API endpoints (HA)
+
+- `GET /ha/status` — role, peer status, VIP owner, last sync, replication lag
+- `POST /ha/failover` — graceful handoff (for planned maintenance / updates)
+
+---
+
+## 4G Failover
+
+Plug in any supported USB 4G dongle or mPCIe modem. It's auto-detected on boot via ModemManager.
+No config needed for most carriers (APN `internet` is the universal default).
+
+```
+Primary down?  →  3 ping failures  →  switch to 4G  →  alert Core  →  bandwidth-aware mode
+Primary back?  →  3 ping successes →  switch back   →  alert Core  →  normal mode
+```
+
+**Bandwidth-aware mode** (automatic when on 4G):
+- CCTV: snapshot-only or reduced quality (no continuous MJPEG)
+- Sensor sync: interval increased from 30s → 120s
+- OCPP tap: only critical events forwarded
+- HA state replication: continues normally (small payloads — <1KB per sync)
+
+### Supported modems
+
+| Modem | Interface | Notes |
+|-------|-----------|-------|
+| Huawei E3372 (HiLink) | `usb0` / `eth2` | Appears as USB Ethernet — no mmcli needed |
+| Huawei E3372 (Stick) | `wwan0` | usb_modeswitch handles HiLink→Stick |
+| Sierra Wireless MC7455 | `wwan0` | mPCIe — ideal for Zimaboard |
+| Quectel EC25 / EC21 | `wwan0` | USB — widely available |
+| Any ModemManager device | `wwan0` | If `mmcli -L` shows it, it works |
+
+### SIM setup
+
+1. Insert SIM into modem before powering on
+2. If SIM has a PIN: set `connectivity.failover.pin` in config
+3. Set APN if carrier doesn't use `internet`: `connectivity.failover.apn: your.apn`
+4. That's it — ModemManager handles the rest
+
+### Config
+
+```yaml
+connectivity:
+  primary:
+    interface: eth0
+    check_interval: 30       # ping Core every N seconds
+    check_target: ""         # auto: Core API hostname. Or set explicit IP/host
+    failure_threshold: 3     # failures before failover activates
+  failover:
+    enabled: auto            # "auto" (detect modem), "true", "false"
+    interface: wwan0         # or "usb0" for HiLink-mode Huawei
+    apn: internet
+    pin: ""                  # SIM PIN (leave blank if none)
+    bandwidth_mode: true     # reduce non-essential traffic on 4G
+    max_monthly_gb: 5        # alert at 90% of this limit
+  wifi:
+    enabled: false           # tertiary option — WiFi as backup
+    ssid: ""
+    password: ""
+```
+
+### API
+
+- `GET /diag/connectivity` — mode, primary status, modem info, signal, carrier, data usage, last failover time
+
+---
+
 ## Configuration Reference
 
 See `config/opencpo.yaml.example` for full documentation.
@@ -171,6 +315,8 @@ See `config/opencpo.yaml.example` for full documentation.
 - `metrics_port` — Prometheus port (default: 9090)
 - `auto_update` — enable/disable auto-update (default: true)
 - `update_time` — cron-style update schedule (default: "03:00")
+- `ha.*` — see [HA Pair](#ha-pair-zero-config-auto-discovery) section above
+- `connectivity.*` — see [4G Failover](#4g-failover) section above
 
 ---
 
