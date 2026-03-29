@@ -1,0 +1,27 @@
+[Unit]
+Description=OpenCPO Gateway — Health Monitor
+After=opencpo-proxy.service
+
+[Service]
+Type=simple
+User=opencpo
+Group=opencpo
+WorkingDirectory=/opt/opencpo-gateway
+ExecStart=/opt/opencpo-venv/bin/python -m gateway.monitor
+Restart=always
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=opencpo-monitor
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/opencpo
+
+MemoryMax=64M
+
+[Install]
+WantedBy=multi-user.target

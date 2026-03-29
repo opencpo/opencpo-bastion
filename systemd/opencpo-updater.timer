@@ -1,0 +1,13 @@
+[Unit]
+Description=OpenCPO Gateway — Software Auto-Update (schedule)
+After=network-online.target
+
+[Timer]
+# Run at 03:00 local time daily
+OnCalendar=*-*-* 03:00:00
+# Add random delay up to 10 minutes (avoids thundering herd on fleet updates)
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

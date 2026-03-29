@@ -1,0 +1,25 @@
+[Unit]
+Description=OpenCPO Gateway — Charger Discovery (run)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=opencpo
+Group=opencpo
+WorkingDirectory=/opt/opencpo-gateway
+ExecStart=/opt/opencpo-venv/bin/python -c "\
+import asyncio; \
+import sys; \
+sys.path.insert(0, '/opt/opencpo-gateway'); \
+from gateway.config import load_config; \
+from gateway.discovery import ChargerDiscovery; \
+async def run(): \
+    config = load_config(); \
+    d = ChargerDiscovery(config); \
+    await d._run_discovery(); \
+asyncio.run(run())"
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=opencpo-discovery

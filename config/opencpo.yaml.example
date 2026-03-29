@@ -1,0 +1,135 @@
+# OpenCPO Gateway Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Drop this file onto the FAT32 boot partition of your SD card as:
+#   /boot/opencpo.yaml   (Raspberry Pi OS)
+#   /boot/firmware/opencpo.yaml  (Ubuntu on Pi)
+#
+# REQUIRED fields are marked ★. Everything else has a sensible default.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# ★ REQUIRED: Tailscale one-time auth key
+# Get one from: https://login.tailscale.com/admin/settings/keys
+# Use an "ephemeral" key for auto-expiry, or a reusable key for fixed deployments.
+# This key is REMOVED from this file after successful first boot (security).
+tailscale_auth_key: "tskey-auth-XXXXXXXXXX"
+
+# ★ REQUIRED: Your OpenCPO Core URL
+core_api_url: "https://core.example.com"
+
+# Optional: Override the Tailscale hostname for this gateway.
+# Default: auto-generated as "opencpo-gw-<hostname>"
+# tailscale_hostname: "opencpo-gw-site-amsterdam"
+
+
+# ── OCPP Proxy Ports ──────────────────────────────────────────────────────────
+# These bind to 0.0.0.0 — chargers connect to these ports on the Pi's LAN IP.
+proxy_ports:
+  ocpp16: 9100      # OCPP 1.6  (default)
+  ocpp201: 9201     # OCPP 2.0.1 (default)
+
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+log_level: "info"   # debug | info | warning | error
+
+
+# ── Management Endpoints (Tailscale-only) ────────────────────────────────────
+metrics_port: 9090      # Prometheus metrics
+tap_port: 8085          # OCPP message tap / SSE
+troubleshoot_port: 8086 # Diagnostics API
+
+
+# ── OCPP Message Tap ─────────────────────────────────────────────────────────
+tap_buffer_size: 10000  # messages to keep in memory ring buffer
+
+
+# ── Heartbeat ─────────────────────────────────────────────────────────────────
+heartbeat_interval_seconds: 60  # how often to POST health to Core
+
+
+# ── Charger Discovery ─────────────────────────────────────────────────────────
+discovery_interval_seconds: 300  # 5 minutes between subnet scans
+
+
+# ── Certificate Renewal ───────────────────────────────────────────────────────
+cert_renew_days_before: 30  # renew cert this many days before expiry
+
+
+# ── Auto-Update ───────────────────────────────────────────────────────────────
+auto_update: true
+update_time: "03:00"    # local time HH:MM for nightly update check
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SITE INTELLIGENCE
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Sensor Array ──────────────────────────────────────────────────────────────
+# Sensors are auto-detected on boot. Only enabled/detected sensors are polled.
+sensors:
+  enabled: true
+  scan_interval: 30         # seconds between sensor readings
+
+  # GPIO pin assignments (BCM numbering)
+  gpio:
+    reed_switch_pin: 17     # door/tamper detection
+    flood_sensor_pin: 27    # water/flood detection
+
+  # Alert thresholds — gateway alerts Core when these are breached
+  alerts:
+    temperature_max: 55     # °C — enclosure overheat alert
+    humidity_max: 85        # % — condensation risk alert
+    power_deviation: 20     # % — alert if CT reading differs from charger report by >20%
+    sound_db_max: 85        # dB — abnormal noise (fan failure, arcing)
+    flood: true             # alert immediately on any water detection
+    tamper: true            # alert immediately on enclosure open
+
+
+# ── CCTV ──────────────────────────────────────────────────────────────────────
+cctv:
+  enabled: false            # opt-in — CCTV is resource-intensive on Pi Zero
+
+  # Provider: "unifi" | "onvif" | "auto"
+  # "auto" = try UniFi if credentials present, fall back to ONVIF
+  provider: auto
+
+  # UniFi Protect configuration
+  unifi:
+    controller_url: ""      # auto-discover if empty, or set https://192.168.1.1:7443
+    username: ""            # local Protect account (NOT cloud/SSO)
+    password: ""
+    stream_quality: medium  # high | medium | low  (medium = 1080p or 720p depending on camera)
+    use_motion_events: true # use Protect's AI motion detection instead of our own frame-diff
+
+    smart_detection:
+      enabled: true
+      forward_to_core: true  # POST events to Core API
+
+      lpr:
+        enabled: true
+        auto_authorize: false  # Core decides whether to authorize charging — gateway just reports
+
+      face_auth:
+        enabled: true
+        # Alert on unknown faces during these hours (HH:MM-HH:MM, empty = alert always if alert_all_unknown)
+        alert_unknown_hours: "22:00-06:00"
+        alert_all_unknown: false  # if true, alert on ANY unknown face regardless of time
+
+  # Local recording — circular buffer
+  recording:
+    enabled: true
+    retention_hours: 48             # delete recordings older than this
+    storage_path: /var/lib/opencpo/recordings
+    max_storage_gb: 16              # circular buffer cap
+
+  # Motion detection (used when provider != unifi, or use_motion_events = false)
+  motion:
+    enabled: true
+    sensitivity: 30         # 0-100 (higher = more sensitive)
+    cooldown_sec: 60        # minimum seconds between motion alerts
+
+  # Stream proxy settings
+  streams:
+    format: mjpeg           # mjpeg | hls
+    max_fps: 15             # cap frame rate for bandwidth
+    resolution: 640x480     # downscale for tunnel bandwidth

@@ -1,0 +1,32 @@
+[Unit]
+Description=OpenCPO Gateway — Remote Diagnostics API
+After=opencpo-proxy.service
+
+[Service]
+Type=simple
+User=opencpo
+Group=opencpo
+WorkingDirectory=/opt/opencpo-gateway
+ExecStart=/opt/opencpo-venv/bin/uvicorn gateway.troubleshoot:app \
+    --host 127.0.0.1 \
+    --port 8086 \
+    --log-level warning \
+    --no-access-log
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=opencpo-troubleshoot
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+MemoryMax=64M
+# Allow reading /proc for system diagnostics
+ReadOnlyPaths=/proc /sys
+
+[Install]
+WantedBy=multi-user.target

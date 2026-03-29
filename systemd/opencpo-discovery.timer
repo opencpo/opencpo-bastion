@@ -1,0 +1,12 @@
+[Unit]
+Description=OpenCPO Gateway — Charger Discovery (schedule)
+After=network-online.target
+
+[Timer]
+# Scan for new chargers every 5 minutes
+OnBootSec=30
+OnUnitActiveSec=5min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

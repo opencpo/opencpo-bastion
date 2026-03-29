@@ -1,0 +1,28 @@
+[Unit]
+Description=OpenCPO Gateway — Certificate Key Vault
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+Group=root
+ExecStart=/opt/opencpo-venv/bin/python -c "\
+import asyncio; \
+import sys; \
+sys.path.insert(0, '/opt/opencpo-gateway'); \
+from gateway.config import load_config; \
+from gateway.keyvault import KeyVault; \
+async def run(): \
+    config = load_config(); \
+    vault = KeyVault(config); \
+    await vault.start(); \
+asyncio.run(run())"
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=opencpo-keyvault
+
+[Install]
+WantedBy=multi-user.target

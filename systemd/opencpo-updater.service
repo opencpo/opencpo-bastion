@@ -1,0 +1,25 @@
+[Unit]
+Description=OpenCPO Gateway — Software Auto-Update (run)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/opencpo-gateway
+ExecStart=/opt/opencpo-venv/bin/python -c "\
+import asyncio; \
+import sys; \
+sys.path.insert(0, '/opt/opencpo-gateway'); \
+from gateway.config import load_config; \
+from gateway.updater import Updater; \
+async def run(): \
+    config = load_config(); \
+    u = Updater(config); \
+    await u.check_and_update(); \
+asyncio.run(run())"
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=opencpo-updater

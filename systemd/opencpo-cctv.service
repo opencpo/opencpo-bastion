@@ -1,0 +1,32 @@
+[Unit]
+Description=OpenCPO Gateway — CCTV Proxy (UniFi/ONVIF)
+After=opencpo-proxy.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=opencpo
+Group=opencpo
+WorkingDirectory=/opt/opencpo-gateway
+ExecStart=/opt/opencpo-venv/bin/python -m gateway.cctv
+Restart=always
+RestartSec=15
+# CCTV is opt-in — fail gracefully if disabled in config
+SuccessExitStatus=0
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=opencpo-cctv
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/opencpo/recordings /var/lib/opencpo/hls
+
+# CCTV is the heaviest service — cap at 200MB
+# Increase if recording many cameras simultaneously
+MemoryMax=200M
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,30 @@
+[Unit]
+Description=OpenCPO Gateway — Sensor Array (I2C/GPIO)
+After=opencpo-proxy.service
+
+[Service]
+Type=simple
+# gpio group for GPIO access, i2c group for I2C bus
+User=opencpo
+Group=opencpo
+SupplementaryGroups=gpio i2c audio
+WorkingDirectory=/opt/opencpo-gateway
+ExecStart=/opt/opencpo-venv/bin/python -m gateway.sensors
+Restart=always
+RestartSec=15
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=opencpo-sensors
+
+# I2C and GPIO device access
+DeviceAllow=/dev/i2c-1 rw
+DeviceAllow=/dev/gpiomem rw
+DeviceAllow=/dev/snd rw
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+MemoryMax=64M
+
+[Install]
+WantedBy=multi-user.target
