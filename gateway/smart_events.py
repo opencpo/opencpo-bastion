@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Smart Detection Event Processor
+OpenCPO Bastion — Smart Detection Event Processor
 
 Subscribes to UniFi Protect's real-time WebSocket events and:
   - Logs to a local ring buffer

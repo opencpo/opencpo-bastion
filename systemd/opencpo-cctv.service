@@ -1,5 +1,5 @@
 [Unit]
-Description=OpenCPO Gateway — CCTV Proxy (UniFi/ONVIF)
+Description=OpenCPO Bastion — CCTV Proxy (UniFi/ONVIF)
 After=opencpo-proxy.service network-online.target
 Wants=network-online.target
 
@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 User=opencpo
 Group=opencpo
-WorkingDirectory=/opt/opencpo-gateway
+WorkingDirectory=/opt/opencpo-bastion
 ExecStart=/opt/opencpo-venv/bin/python -m gateway.cctv
 Restart=always
 RestartSec=15

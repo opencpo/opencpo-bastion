@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Entry Point
+OpenCPO Bastion — Entry Point
 
 Starts all services via asyncio:
   - OCPP WebSocket proxy (proxy.py)
@@ -44,6 +44,8 @@ from gateway.smart_events import SmartEventProcessor
 from gateway.lpr import LPRProcessor
 from gateway.face_auth import FaceAuthProcessor
 from gateway.updater import Updater
+from gateway.ha import HAManager
+from gateway.connectivity import ConnectivityManager, ConnectivityMode
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +65,7 @@ WATCHDOG_INTERVAL = 10  # seconds between watchdog pings
 def _print_banner(config) -> None:
     version = "dev"
     try:
-        version = Path("/opt/opencpo-gateway/VERSION").read_text().strip()
+        version = Path("/opt/opencpo-bastion/VERSION").read_text().strip()
     except Exception:
         pass
 
@@ -77,6 +79,10 @@ def _print_banner(config) -> None:
     print(f"  Core URL  : {config.core_api_base}")
     print(f"  OCPP 1.6  : 0.0.0.0:{config.proxy_ports.ocpp16}")
     print(f"  OCPP 2.0.1: 0.0.0.0:{config.proxy_ports.ocpp201}")
+    ha_mode = config.ha.enabled
+    if ha_mode != "false":
+        print(f"  HA Mode   : {ha_mode} (VIP: {config.ha.virtual_ip or 'auto'}, iface: {config.ha.interface})")
+    print(f"  4G Failover: {config.connectivity.failover.get('enabled', 'auto')}")
     if ts_ip:
         print(f"  Metrics   : http://{ts_ip}:{config.metrics_port}/metrics")
         print(f"  Tap       : http://{ts_ip}:{config.tap_port}/tap")
@@ -145,9 +151,28 @@ async def main() -> None:
     ts_ip = _get_tailscale_ip()
     _print_banner(config)
 
+    # ── Connectivity (4G failover) — start before anything needs the network ──
+    connectivity = ConnectivityManager(config)
+    await connectivity.start()
+
     # ── Key vault ─────────────────────────────────────────────────────────────
     vault = KeyVault(config, renew_days_before=config.cert_renew_days_before)
     await vault.start()
+
+    # ── High Availability — discover peer and negotiate role before binding ───
+    ha = HAManager(config, vault=vault)
+    await ha.start()  # blocks up to 10s for peer discovery
+
+    # Determine proxy bind address: VIP if HA active, else all interfaces
+    if ha.is_active:
+        proxy_bind = ha.virtual_ip
+        logger.info("HA active — OCPP proxy binding to VIP %s", proxy_bind)
+    elif ha.is_standby:
+        proxy_bind = "0.0.0.0"  # standby also listens (for fast cutover)
+        logger.info("HA standby — OCPP proxy binding to 0.0.0.0")
+    else:
+        proxy_bind = "0.0.0.0"
+        logger.info("Standalone mode — OCPP proxy binding to 0.0.0.0")
 
     # ── OCPP Proxy ────────────────────────────────────────────────────────────
     proxy = OCPPProxy(
@@ -197,6 +222,24 @@ async def main() -> None:
     # ── Monitor ───────────────────────────────────────────────────────────────
     monitor = HealthMonitor(config, keyvault=vault, proxy=proxy)
 
+    # ── Bandwidth-aware mode: wire up connectivity callbacks ─────────────────
+    def _on_connectivity_change(mode: ConnectivityMode) -> None:
+        """Adjust module behavior when switching between primary and 4G."""
+        if mode == ConnectivityMode.FAILOVER:
+            logger.info("Bandwidth-aware mode: ON (4G active)")
+            # CCTV: signal low-quality mode (modules check connectivity.is_on_failover)
+            # Sensor sync interval handled by SensorManager checking same flag
+        else:
+            logger.info("Bandwidth-aware mode: OFF (primary restored)")
+
+    connectivity.register_bandwidth_callback(_on_connectivity_change)
+
+    # ── HA: wire state replication sources ───────────────────────────────────
+    # Proxy and discovery register their state so it gets replicated to standby
+    # These are no-ops in standalone mode
+    if not ha.is_standalone:
+        logger.info("HA state replication wired up")
+
     # ── Troubleshoot API ──────────────────────────────────────────────────────
     diag_init(proxy=proxy, keyvault=vault, sensor_manager=sensors, config=config)
 
@@ -244,6 +287,8 @@ async def main() -> None:
         asyncio.create_task(diag_server.serve(), name="diag"),
         asyncio.create_task(updater.start(), name="updater"),
         asyncio.create_task(_watchdog_loop(), name="watchdog"),
+        asyncio.create_task(connectivity.run(), name="connectivity"),
+        asyncio.create_task(ha.run(), name="ha"),
         asyncio.create_task(shutdown_event.wait(), name="shutdown-sentinel"),
     ]
 

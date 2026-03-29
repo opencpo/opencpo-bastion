@@ -1,0 +1,30 @@
+[Unit]
+Description=OpenCPO Bastion — Multi-WAN Connectivity & 4G Failover
+Documentation=https://github.com/opencpo/opencpo-bastion
+After=network-online.target ModemManager.service
+Wants=network-online.target ModemManager.service
+# Connectivity module is embedded in the main gateway process.
+# This unit is a placeholder that ensures ModemManager is started.
+PartOf=opencpo-proxy.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# Ensure ModemManager is running for 4G modem detection
+ExecStart=/bin/systemctl start ModemManager || true
+
+# If a modem is present, ensure usb_modeswitch has run
+ExecStartPost=/bin/sh -c 'usbmuxd --exit 2>/dev/null || true'
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=opencpo-connectivity
+
+# Network management capabilities
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

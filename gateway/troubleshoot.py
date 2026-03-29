@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Remote Troubleshooting API
+OpenCPO Bastion — Remote Troubleshooting API
 
 FastAPI endpoints for remote diagnostics. Binds to Tailscale IP only.
 

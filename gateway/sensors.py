@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Sensor Array
+OpenCPO Bastion — Sensor Array
 
 Plugin-architecture I2C/GPIO sensor framework.
 Sensors are auto-detected on boot; only detected sensors are polled.

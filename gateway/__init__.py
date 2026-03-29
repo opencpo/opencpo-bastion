@@ -1,2 +1,2 @@
-"""OpenCPO Gateway — Python package."""
+"""OpenCPO Bastion — Python package."""
 __version__ = "0.1.0"

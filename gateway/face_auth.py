@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Face-Based Access Control
+OpenCPO Bastion — Face-Based Access Control
 
 Listens for face recognition events from UniFi Protect and:
   - Classifies events as "known" (authorized personnel) or "unknown"

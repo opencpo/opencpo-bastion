@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — OCPP Message Tap
+OpenCPO Bastion — OCPP Message Tap
 
 Reads from the shared ring buffer populated by proxy.py and exposes:
   - SSE stream at /tap — live OCPP message stream

@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — UniFi Protect Adapter (standalone module)
+OpenCPO Bastion — UniFi Protect Adapter (standalone module)
 
 Re-exports UniFiProvider from cctv.py for clarity and direct import.
 All implementation lives in cctv.py to avoid duplication.

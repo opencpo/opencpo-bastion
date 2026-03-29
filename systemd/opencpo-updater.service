@@ -1,5 +1,5 @@
 [Unit]
-Description=OpenCPO Gateway — Software Auto-Update (run)
+Description=OpenCPO Bastion — Software Auto-Update (run)
 After=network-online.target
 Wants=network-online.target
 
@@ -7,11 +7,11 @@ Wants=network-online.target
 Type=oneshot
 User=root
 Group=root
-WorkingDirectory=/opt/opencpo-gateway
+WorkingDirectory=/opt/opencpo-bastion
 ExecStart=/opt/opencpo-venv/bin/python -c "\
 import asyncio; \
 import sys; \
-sys.path.insert(0, '/opt/opencpo-gateway'); \
+sys.path.insert(0, '/opt/opencpo-bastion'); \
 from gateway.config import load_config; \
 from gateway.updater import Updater; \
 async def run(): \

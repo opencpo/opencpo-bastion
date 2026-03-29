@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Configuration Management
+OpenCPO Bastion — Configuration Management
 
 Loads configuration from /boot/opencpo.yaml (dropped on SD card by user).
 Supports environment variable overrides for all settings.
@@ -12,7 +12,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -30,6 +30,51 @@ CONFIG_PATHS = [
 class ProxyPorts:
     ocpp16: int = 9100
     ocpp201: int = 9201
+
+
+@dataclass
+class HAConfig:
+    """High Availability configuration — dual-gateway VRRP failover."""
+    enabled: str = "auto"          # "auto", "true", "false"
+    role: str = "auto"             # "auto", "primary", "secondary"
+    priority: int = 100            # VRRP priority (higher = preferred active)
+    peer_port: int = 7700          # TCP state replication port
+    heartbeat_port: int = 7701     # UDP health check / discovery port
+    heartbeat_interval: float = 1.0
+    failover_threshold: int = 3    # missed heartbeats before declaring peer dead
+    virtual_ip: str = ""           # VIP on charger LAN — auto-derived if empty
+    interface: str = "eth1"        # charger LAN interface (ETH1 in dual-NIC setup)
+    vrrp_router_id: int = 50       # must match on both units (1-255)
+    sync_interval: float = 5.0    # state replication interval (seconds)
+    encryption_key: str = ""       # auto-generated on first pairing, stored in keyvault
+
+
+@dataclass
+class ConnectivityConfig:
+    """Multi-WAN / 4G failover configuration."""
+    # Nested dicts matching the YAML structure — accessed via .get()
+    primary: Dict[str, Any] = field(default_factory=lambda: {
+        "interface": "eth0",
+        "check_interval": 30,
+        "check_target": "",         # auto: Core API host
+        "failure_threshold": 3,
+    })
+    failover: Dict[str, Any] = field(default_factory=lambda: {
+        "enabled": "auto",          # "auto", "true", "false"
+        "interface": "wwan0",       # or "usb0" for HiLink-mode Huawei
+        "apn": "internet",
+        "pin": "",
+        "bandwidth_mode": True,
+        "max_monthly_gb": 5,
+    })
+    wifi: Dict[str, Any] = field(default_factory=lambda: {
+        "enabled": False,
+        "ssid": "",
+        "password": "",
+    })
+
+    def get(self, key: str, default=None):
+        return getattr(self, key, default)
 
 
 @dataclass
@@ -67,6 +112,12 @@ class GatewayConfig:
 
     # Heartbeat
     heartbeat_interval_seconds: int = 60
+
+    # High Availability
+    ha: HAConfig = field(default_factory=HAConfig)
+
+    # Multi-WAN / 4G failover
+    connectivity: ConnectivityConfig = field(default_factory=ConnectivityConfig)
 
     @property
     def core_api_base(self) -> str:
@@ -194,6 +245,32 @@ def load_config() -> GatewayConfig:
                 config.proxy_ports.ocpp16 = ports.get("ocpp16", config.proxy_ports.ocpp16)
                 config.proxy_ports.ocpp201 = ports.get("ocpp201", config.proxy_ports.ocpp201)
 
+            # High Availability (nested)
+            if "ha" in raw and isinstance(raw["ha"], dict):
+                ha = raw["ha"]
+                config.ha.enabled = ha.get("enabled", config.ha.enabled)
+                config.ha.role = ha.get("role", config.ha.role)
+                config.ha.priority = ha.get("priority", config.ha.priority)
+                config.ha.peer_port = ha.get("peer_port", config.ha.peer_port)
+                config.ha.heartbeat_port = ha.get("heartbeat_port", config.ha.heartbeat_port)
+                config.ha.heartbeat_interval = ha.get("heartbeat_interval", config.ha.heartbeat_interval)
+                config.ha.failover_threshold = ha.get("failover_threshold", config.ha.failover_threshold)
+                config.ha.virtual_ip = ha.get("virtual_ip", config.ha.virtual_ip)
+                config.ha.interface = ha.get("interface", config.ha.interface)
+                config.ha.vrrp_router_id = ha.get("vrrp_router_id", config.ha.vrrp_router_id)
+                config.ha.sync_interval = ha.get("sync_interval", config.ha.sync_interval)
+                config.ha.encryption_key = ha.get("encryption_key", config.ha.encryption_key)
+
+            # Connectivity / 4G failover (nested)
+            if "connectivity" in raw and isinstance(raw["connectivity"], dict):
+                conn = raw["connectivity"]
+                if "primary" in conn and isinstance(conn["primary"], dict):
+                    config.connectivity.primary.update(conn["primary"])
+                if "failover" in conn and isinstance(conn["failover"], dict):
+                    config.connectivity.failover.update(conn["failover"])
+                if "wifi" in conn and isinstance(conn["wifi"], dict):
+                    config.connectivity.wifi.update(conn["wifi"])
+
             logger.info("Loaded config from %s", config_path)
 
         except yaml.YAMLError as e:
@@ -206,7 +283,7 @@ def load_config() -> GatewayConfig:
     # Validate
     errors = config.validate()
     if errors:
-        print("\n❌ OpenCPO Gateway configuration errors:\n")
+        print("\n❌ OpenCPO Bastion configuration errors:\n")
         for err in errors:
             print(f"  • {err}")
         print(

@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — CCTV Proxy
+OpenCPO Bastion — CCTV Proxy
 
 Zero-trust camera integration. Cameras stay on the local LAN;
 streams are proxied through the Tailscale tunnel to admin panel.

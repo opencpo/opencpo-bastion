@@ -1,5 +1,5 @@
 [Unit]
-Description=OpenCPO Gateway — Sensor Array (I2C/GPIO)
+Description=OpenCPO Bastion — Sensor Array (I2C/GPIO)
 After=opencpo-proxy.service
 
 [Service]
@@ -8,7 +8,7 @@ Type=simple
 User=opencpo
 Group=opencpo
 SupplementaryGroups=gpio i2c audio
-WorkingDirectory=/opt/opencpo-gateway
+WorkingDirectory=/opt/opencpo-bastion
 ExecStart=/opt/opencpo-venv/bin/python -m gateway.sensors
 Restart=always
 RestartSec=15

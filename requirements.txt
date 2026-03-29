@@ -1,4 +1,4 @@
-# OpenCPO Gateway — Python Dependencies
+# OpenCPO Bastion — Python Dependencies
 # Python 3.11+ required (ships with Raspberry Pi OS Bookworm)
 
 # ── Core ──────────────────────────────────────────────────────────────────────

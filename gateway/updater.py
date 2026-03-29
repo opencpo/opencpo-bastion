@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Auto-Update
+OpenCPO Bastion — Auto-Update
 
 Checks Core API for software updates on a configurable schedule.
 Downloads, verifies (SHA256), applies, and rolls back if the new
@@ -26,8 +26,8 @@ from gateway.config import GatewayConfig
 
 logger = logging.getLogger(__name__)
 
-INSTALL_DIR = Path("/opt/opencpo-gateway")
-BACKUP_DIR = Path("/opt/opencpo-gateway-prev")
+INSTALL_DIR = Path("/opt/opencpo-bastion")
+BACKUP_DIR = Path("/opt/opencpo-bastion-prev")
 VERSION_FILE = INSTALL_DIR / "VERSION"
 
 

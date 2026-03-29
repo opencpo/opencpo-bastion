@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Certificate Key Vault
+OpenCPO Bastion — Certificate Key Vault
 
 Manages the device TLS certificate lifecycle:
   - First boot: generate RSA keypair, create CSR, request signed cert from Core PKI
@@ -190,7 +190,7 @@ class KeyVault:
             x509.CertificateSigningRequestBuilder()
             .subject_name(x509.Name([
                 x509.NameAttribute(NameOID.COMMON_NAME, f"gw-{device_id[:16]}"),
-                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OpenCPO Gateway"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OpenCPO Bastion"),
             ]))
             .sign(key, hashes.SHA256())
         )

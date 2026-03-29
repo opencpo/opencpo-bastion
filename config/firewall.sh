@@ -1,5 +1,5 @@
 #!/bin/bash
-# OpenCPO Gateway — iptables Firewall Rules
+# OpenCPO Bastion — iptables Firewall Rules
 #
 # Policy:
 #   - OCPP proxy ports (9100, 9201) accept from local subnet only

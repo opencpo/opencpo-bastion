@@ -1,5 +1,5 @@
 #!/bin/bash
-# OpenCPO Gateway — Pi Image Build Script
+# OpenCPO Bastion — Pi Image Build Script
 #
 # Produces a flashable Raspberry Pi OS Lite 64-bit image with:
 #   - Python 3.11+, all gateway dependencies
@@ -13,7 +13,7 @@
 #   - Swap disabled
 #
 # Requires: Docker, ~5GB free disk space
-# Output: image/dist/opencpo-gateway-YYYYMMDD.img.gz
+# Output: image/dist/opencpo-bastion-YYYYMMDD.img.gz
 
 set -euo pipefail
 
@@ -21,10 +21,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$SCRIPT_DIR/dist"
 DATE=$(date +%Y%m%d)
-OUTPUT_NAME="opencpo-gateway-$DATE.img"
+OUTPUT_NAME="opencpo-bastion-$DATE.img"
 
 echo "╔══════════════════════════════════════════╗"
-echo "║  OpenCPO Gateway — Image Build           ║"
+echo "║  OpenCPO Bastion — Image Build           ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 echo "Output: $OUTPUT_DIR/$OUTPUT_NAME.gz"
@@ -66,7 +66,7 @@ echo "[3/5] Configuring pi-gen stages..."
 
 # Write pi-gen config
 cat > "$SCRIPT_DIR/config.pigen" << EOF
-IMG_NAME="opencpo-gateway"
+IMG_NAME="opencpo-bastion"
 RELEASE="bookworm"
 DEPLOY_COMPRESSION="gz"
 ENABLE_SSH=0
@@ -97,7 +97,14 @@ apt-get install -y \
     procps \
     curl \
     git \
-    jq
+    jq \
+    keepalived \
+    modemmanager \
+    usb-modeswitch \
+    usb-modeswitch-data \
+    libmbim-utils \
+    libqmi-utils \
+    iproute2
 apt-get clean
 EOF
 
@@ -129,7 +136,7 @@ EOF
 on_chroot << EOF
 python3 -m venv /opt/opencpo-venv
 /opt/opencpo-venv/bin/pip install --upgrade pip wheel
-/opt/opencpo-venv/bin/pip install -r /opt/opencpo-gateway/requirements.txt
+/opt/opencpo-venv/bin/pip install -r /opt/opencpo-bastion/requirements.txt
 EOF
 
 # ── Hardware configuration ────────────────────────────────────────────────────
@@ -195,7 +202,10 @@ systemctl enable \
     opencpo-sensors \
     opencpo-cctv \
     opencpo-updater.timer \
-    opencpo-discovery.timer
+    opencpo-discovery.timer \
+    opencpo-ha \
+    opencpo-connectivity \
+    ModemManager
 EOF
 
 # ── First boot service ────────────────────────────────────────────────────────
@@ -203,7 +213,7 @@ install -m 755 /tmp/first-boot.sh "${ROOTFS_DIR}/usr/local/bin/opencpo-first-boo
 
 cat > "${ROOTFS_DIR}/etc/systemd/system/opencpo-first-boot.service" << 'FIRSTBOOT'
 [Unit]
-Description=OpenCPO Gateway First Boot Provisioning
+Description=OpenCPO Bastion First Boot Provisioning
 ConditionPathExists=/boot/opencpo.yaml
 After=network-online.target
 Wants=network-online.target
@@ -231,8 +241,8 @@ echo "[4/5] Running pi-gen (this takes 20-40 minutes)..."
 docker run --rm --privileged \
     -v "$SCRIPT_DIR:/workspace" \
     -v "$OUTPUT_DIR:/deploy" \
-    -v "$REPO_ROOT/gateway:/opt/opencpo-gateway/gateway" \
-    -v "$REPO_ROOT/requirements.txt:/opt/opencpo-gateway/requirements.txt" \
+    -v "$REPO_ROOT/gateway:/opt/opencpo-bastion/gateway" \
+    -v "$REPO_ROOT/requirements.txt:/opt/opencpo-bastion/requirements.txt" \
     -v "$REPO_ROOT/config:/tmp/config" \
     -v "$REPO_ROOT/systemd:/tmp/systemd" \
     -v "$SCRIPT_DIR/first-boot.sh:/tmp/first-boot.sh" \

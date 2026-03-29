@@ -1,6 +1,6 @@
 [Unit]
-Description=OpenCPO Gateway — OCPP WebSocket Proxy
-Documentation=https://github.com/opencpo/opencpo-gateway
+Description=OpenCPO Bastion — OCPP WebSocket Proxy
+Documentation=https://github.com/opencpo/opencpo-bastion
 After=network-online.target opencpo-keyvault.service tailscaled.service
 Wants=network-online.target
 Requires=opencpo-keyvault.service
@@ -9,7 +9,7 @@ Requires=opencpo-keyvault.service
 Type=simple
 User=opencpo
 Group=opencpo
-WorkingDirectory=/opt/opencpo-gateway
+WorkingDirectory=/opt/opencpo-bastion
 ExecStart=/opt/opencpo-venv/bin/python -m gateway.main
 Restart=always
 RestartSec=5

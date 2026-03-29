@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — License Plate Recognition Integration
+OpenCPO Bastion — License Plate Recognition Integration
 
 Listens for LPR events from UniFi Protect and:
   - Extracts plate number + confidence + camera + timestamp + thumbnail

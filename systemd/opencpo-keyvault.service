@@ -1,5 +1,5 @@
 [Unit]
-Description=OpenCPO Gateway — Certificate Key Vault
+Description=OpenCPO Bastion — Certificate Key Vault
 After=network-online.target tailscaled.service
 Wants=network-online.target
 
@@ -11,7 +11,7 @@ Group=root
 ExecStart=/opt/opencpo-venv/bin/python -c "\
 import asyncio; \
 import sys; \
-sys.path.insert(0, '/opt/opencpo-gateway'); \
+sys.path.insert(0, '/opt/opencpo-bastion'); \
 from gateway.config import load_config; \
 from gateway.keyvault import KeyVault; \
 async def run(): \

@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Charger Discovery
+OpenCPO Bastion — Charger Discovery
 
 Finds OCPP-capable EV chargers on the local network via:
   - mDNS/Avahi (OCPP devices sometimes advertise via _ocpp._tcp)

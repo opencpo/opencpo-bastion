@@ -1,0 +1,32 @@
+[Unit]
+Description=OpenCPO Bastion — High Availability (VRRP keepalived manager)
+Documentation=https://github.com/opencpo/opencpo-bastion
+After=network-online.target opencpo-keyvault.service tailscaled.service
+Wants=network-online.target
+Requires=opencpo-keyvault.service
+# HA module is embedded in the main gateway process.
+# This unit manages keepalived as a dependency.
+BindsTo=opencpo-proxy.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# Generate keepalived config and start keepalived.
+# The Python ha.py module writes the config before starting keepalived.
+# This service ensures keepalived is available and starts it as a dependency.
+ExecStartPre=/bin/sh -c 'mkdir -p /etc/keepalived /run'
+ExecStart=/bin/systemctl start keepalived || true
+ExecStop=/bin/systemctl stop keepalived || true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=opencpo-ha
+
+# keepalived needs CAP_NET_ADMIN to manage VRRP / VIP
+# The Python gateway process calls systemctl start/reload keepalived,
+# so no special caps needed here.
+
+[Install]
+WantedBy=multi-user.target

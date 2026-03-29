@@ -1,12 +1,12 @@
 [Unit]
-Description=OpenCPO Gateway — Remote Diagnostics API
+Description=OpenCPO Bastion — Remote Diagnostics API
 After=opencpo-proxy.service
 
 [Service]
 Type=simple
 User=opencpo
 Group=opencpo
-WorkingDirectory=/opt/opencpo-gateway
+WorkingDirectory=/opt/opencpo-bastion
 ExecStart=/opt/opencpo-venv/bin/uvicorn gateway.troubleshoot:app \
     --host 127.0.0.1 \
     --port 8086 \

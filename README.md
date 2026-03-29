@@ -1,4 +1,4 @@
-# OpenCPO Gateway
+# OpenCPO Bastion
 
 A flashable Raspberry Pi image that turns a Pi into a secure, zero-trust EV charger gateway — bridging local OCPP chargers into the OpenCPO mesh network without touching the chargers themselves.
 
@@ -8,7 +8,7 @@ A flashable Raspberry Pi image that turns a Pi into a secure, zero-trust EV char
 
 EV chargers speak OCPP (WebSocket). They can't run Tailscale, WireGuard, or mTLS themselves — they just connect to a URL and talk. But you don't want charger WebSockets exposed raw to the internet.
 
-OpenCPO Gateway solves this by sitting between your chargers and the cloud:
+OpenCPO Bastion solves this by sitting between your chargers and the cloud:
 
 - Chargers connect to the Pi on the local network (just a WebSocket URL)
 - The Pi holds the mTLS certificates, joins the zero-trust mesh, and forwards everything securely
@@ -51,7 +51,7 @@ OpenCPO Gateway solves this by sitting between your chargers and the cloud:
 ## First Boot Flow
 
 ```
-1. Flash opencpo-gateway.img.gz to SD card (Balena Etcher or rpi-imager)
+1. Flash opencpo-bastion.img.gz to SD card (Balena Etcher or rpi-imager)
 2. Mount the boot partition (FAT32, visible on any OS)
 3. Copy your opencpo.yaml onto the boot partition
 4. Eject and insert SD card into Pi, power on
@@ -111,8 +111,8 @@ OpenCPO Gateway solves this by sitting between your chargers and the cloud:
 
 ```bash
 # Clone and set up
-git clone https://github.com/opencpo/opencpo-gateway
-cd opencpo-gateway
+git clone https://github.com/opencpo/opencpo-bastion
+cd opencpo-bastion
 
 # Install dependencies
 pip install -r requirements.txt
@@ -136,10 +136,10 @@ make test
 ```bash
 # Requires Docker
 make build
-# Output: image/opencpo-gateway-<date>.img.gz
+# Output: image/opencpo-bastion-<date>.img.gz
 
 # Flash with Balena Etcher or:
-gunzip -c image/opencpo-gateway-*.img.gz | sudo dd of=/dev/sdX bs=4M status=progress
+gunzip -c image/opencpo-bastion-*.img.gz | sudo dd of=/dev/sdX bs=4M status=progress
 ```
 
 ---
@@ -182,7 +182,7 @@ One Pi does more than networking. The gateway turns each charging site into a fu
                      ONE PI — ONE TUNNEL
 
   ┌─────────────────────────────────────────────────────────┐
-  │                  OpenCPO Gateway                        │
+  │                  OpenCPO Bastion                        │
   │                                                         │
   │  🔌 OCPP Proxy      — chargers ↔ core                  │
   │  🌡  BME280          — enclosure temp, humidity, pressure│

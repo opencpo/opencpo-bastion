@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — Health Monitoring
+OpenCPO Bastion — Health Monitoring
 
 Checks:
   - Tailscale connectivity (status + ping to Core)

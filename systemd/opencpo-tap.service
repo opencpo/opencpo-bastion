@@ -1,12 +1,12 @@
 [Unit]
-Description=OpenCPO Gateway — OCPP Message Tap (SSE/Query/Export)
+Description=OpenCPO Bastion — OCPP Message Tap (SSE/Query/Export)
 After=opencpo-proxy.service
 
 [Service]
 Type=simple
 User=opencpo
 Group=opencpo
-WorkingDirectory=/opt/opencpo-gateway
+WorkingDirectory=/opt/opencpo-bastion
 ExecStart=/opt/opencpo-venv/bin/uvicorn gateway.tap:app \
     --host 127.0.0.1 \
     --port 8085 \

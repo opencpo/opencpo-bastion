@@ -1,5 +1,5 @@
 """
-OpenCPO Gateway — OCPP WebSocket Proxy
+OpenCPO Bastion — OCPP WebSocket Proxy
 
 Listens on the local network for OCPP charger connections and forwards
 them to the upstream OpenCPO Core via a mTLS-authenticated WebSocket

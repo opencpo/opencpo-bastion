@@ -1,5 +1,5 @@
 #!/bin/bash
-# OpenCPO Gateway — First Boot Provisioning
+# OpenCPO Bastion — First Boot Provisioning
 #
 # Runs once on first power-on after flashing.
 # Triggered by opencpo-first-boot.service when /boot/opencpo.yaml exists.
@@ -27,7 +27,7 @@ if [ -z "$CONFIG_FILE" ]; then
 fi
 
 echo "╔══════════════════════════════════════════╗"
-echo "║  OpenCPO Gateway — First Boot            ║"
+echo "║  OpenCPO Bastion — First Boot            ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 echo "Config: $CONFIG_FILE"
@@ -100,7 +100,7 @@ chmod 700 /etc/opencpo/certs
 # Python handles the full PKI flow (CSR generation, submission, storage)
 /opt/opencpo-venv/bin/python3 -c "
 import asyncio, sys
-sys.path.insert(0, '/opt/opencpo-gateway')
+sys.path.insert(0, '/opt/opencpo-bastion')
 
 async def provision():
     from gateway.config import load_config
@@ -149,7 +149,7 @@ echo "      Auth key removed ✓"
 touch /etc/opencpo/.first-boot-complete
 echo ""
 echo "════════════════════════════════════════════"
-echo "  OpenCPO Gateway provisioned successfully!"
+echo "  OpenCPO Bastion provisioned successfully!"
 echo "  Tailscale IP: $TS_IP"
 echo "  Metrics:      http://$TS_IP:9090/metrics"
 echo "  Tap:          http://$TS_IP:8085/tap"

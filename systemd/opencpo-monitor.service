@@ -1,12 +1,12 @@
 [Unit]
-Description=OpenCPO Gateway — Health Monitor
+Description=OpenCPO Bastion — Health Monitor
 After=opencpo-proxy.service
 
 [Service]
 Type=simple
 User=opencpo
 Group=opencpo
-WorkingDirectory=/opt/opencpo-gateway
+WorkingDirectory=/opt/opencpo-bastion
 ExecStart=/opt/opencpo-venv/bin/python -m gateway.monitor
 Restart=always
 RestartSec=10
